@@ -113,7 +113,7 @@
             
             <div class="form-group">
                 <label for="wsUrl">WebSocket URL:</label>
-                <input type="text" id="wsUrl" value="ws://localhost:8080/ws" />
+                <input type="text" id="wsUrl" value="wss://pub-sub-system-production.up.railway.app/ws" />
             </div>
             
             <button id="connectBtn" onclick="connect()">Connect</button>
@@ -351,7 +351,7 @@
             }
             
             try {
-                const response = await fetch(`http://localhost:8080/topics`, {
+                const response = await fetch(`https://pub-sub-system-production.up.railway.app/topics`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -378,7 +378,7 @@
             }
             
             try {
-                const response = await fetch(`http://localhost:8080/topics/${topicName}`, {
+                const response = await fetch(`https://pub-sub-system-production.up.railway.app/topics/${topicName}`, {
                     method: 'DELETE'
                 });
                 
@@ -395,7 +395,7 @@
         
         async function listTopics() {
             try {
-                const response = await fetch('http://localhost:8080/topics');
+                const response = await fetch('https://pub-sub-system-production.up.railway.app/topics');
                 const result = await response.json();
                 
                 if (response.ok) {

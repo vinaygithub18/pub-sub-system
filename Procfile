@@ -1,1 +1,0 @@
-web: ./pub-sub-system

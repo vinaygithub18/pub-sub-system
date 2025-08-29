@@ -75,6 +75,24 @@ type PubSubSystem struct {
 	MaxSubscribers int
 }
 
+// CORS middleware
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Allow all origins for development
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Global pub/sub system instance
 var pubSub = NewPubSubSystem()
 
@@ -645,14 +663,17 @@ func main() {
 	mux.HandleFunc("/health", handleHealth)
 	mux.HandleFunc("/stats", handleStats)
 
-	// Start server - use Heroku's PORT environment variable
+	// Start server - use Railway's PORT environment variable
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 	port = ":" + port
 	log.Printf("Starting Pub/Sub server on port %s", port)
-	log.Fatal(http.ListenAndServe(port, mux))
+
+	// Apply CORS middleware to all routes
+	handler := corsMiddleware(mux)
+	log.Fatal(http.ListenAndServe(port, handler))
 }
 
 // Combined handler for /topics endpoint
