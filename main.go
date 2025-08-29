@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -644,8 +645,12 @@ func main() {
 	mux.HandleFunc("/health", handleHealth)
 	mux.HandleFunc("/stats", handleStats)
 
-	// Start server
-	port := ":8080"
+	// Start server - use Heroku's PORT environment variable
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	port = ":" + port
 	log.Printf("Starting Pub/Sub server on port %s", port)
 	log.Fatal(http.ListenAndServe(port, mux))
 }

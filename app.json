@@ -1,0 +1,35 @@
+{
+  "name": "pub-sub-system",
+  "description": "A production-quality in-memory Pub/Sub system with WebSocket support",
+  "repository": "https://github.com/yourusername/pub-sub-system",
+  "keywords": ["go", "websocket", "pubsub", "real-time", "messaging"],
+  "env": {
+    "PORT": {
+      "description": "Port for the web server",
+      "value": "8080"
+    },
+    "MAX_TOPICS": {
+      "description": "Maximum number of topics",
+      "value": "100"
+    },
+    "MAX_SUBSCRIBERS": {
+      "description": "Maximum subscribers per topic",
+      "value": "100"
+    },
+    "MAX_MESSAGES": {
+      "description": "Message history per topic",
+      "value": "100"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/go"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  }
+}
