@@ -23,9 +23,8 @@ func main() {
 
 	// Set up HTTP routes
 	mux.HandleFunc("/ws", wsHandler.HandleWebSocket)
-	mux.HandleFunc("/topics", httpHandler.HandleCreateTopic)          // POST for create
-	mux.HandleFunc("/topics/", httpHandler.HandleDeleteTopic)         // DELETE for delete
-	mux.HandleFunc("/topics", httpHandler.HandleListTopics)           // GET for list
+	mux.HandleFunc("/topics", httpHandler.HandleTopics)       // Combined handler for POST/GET
+	mux.HandleFunc("/topics/", httpHandler.HandleDeleteTopic) // DELETE for delete
 	mux.HandleFunc("/health", httpHandler.HandleHealth)
 	mux.HandleFunc("/stats", httpHandler.HandleStats)
 

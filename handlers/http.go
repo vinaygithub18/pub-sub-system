@@ -19,13 +19,20 @@ func NewHTTPHandler(pubSubSystem *pubsub.PubSubSystem) *HTTPHandler {
 	}
 }
 
-// HandleCreateTopic handles topic creation
-func (h *HTTPHandler) HandleCreateTopic(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+// HandleTopics handles all topic operations based on HTTP method
+func (h *HTTPHandler) HandleTopics(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		h.handleCreateTopic(w, r)
+	case http.MethodGet:
+		h.handleListTopics(w, r)
+	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
+}
 
+// handleCreateTopic handles topic creation
+func (h *HTTPHandler) handleCreateTopic(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name string `json:"name"`
 	}
@@ -87,13 +94,8 @@ func (h *HTTPHandler) HandleDeleteTopic(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-// HandleListTopics handles topic listing
-func (h *HTTPHandler) HandleListTopics(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+// handleListTopics handles topic listing
+func (h *HTTPHandler) handleListTopics(w http.ResponseWriter, r *http.Request) {
 	topics := h.pubSubSystem.GetTopics()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(topics)
