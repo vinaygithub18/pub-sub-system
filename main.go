@@ -634,16 +634,76 @@ func handleStats(w http.ResponseWriter, r *http.Request) {
 
 // Main function
 func main() {
+	// Create a new mux for better routing
+	mux := http.NewServeMux()
+
 	// Set up HTTP routes
-	http.HandleFunc("/ws", handleWebSocket)
-	http.HandleFunc("/topics", handleCreateTopic)
-	http.HandleFunc("/topics/", handleDeleteTopic)
-	http.HandleFunc("/topics", handleListTopics)
-	http.HandleFunc("/health", handleHealth)
-	http.HandleFunc("/stats", handleStats)
+	mux.HandleFunc("/ws", handleWebSocket)
+	mux.HandleFunc("/topics", handleTopics)          // Combined handler for /topics
+	mux.HandleFunc("/topics/", handleTopicsWithPath) // Handle /topics/name patterns
+	mux.HandleFunc("/health", handleHealth)
+	mux.HandleFunc("/stats", handleStats)
 
 	// Start server
 	port := ":8080"
 	log.Printf("Starting Pub/Sub server on port %s", port)
-	log.Fatal(http.ListenAndServe(port, nil))
+	log.Fatal(http.ListenAndServe(port, mux))
+}
+
+// Combined handler for /topics endpoint
+func handleTopics(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		handleCreateTopic(w, r)
+	case http.MethodGet:
+		handleListTopics(w, r)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// Handler for /topics/name patterns
+func handleTopicsWithPath(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract topic name from path
+	path := r.URL.Path
+	if len(path) <= 8 || path[:8] != "/topics/" {
+		http.Error(w, "Invalid topic path", http.StatusBadRequest)
+		return
+	}
+
+	topicName := path[8:] // Remove "/topics/" prefix
+	// Remove trailing slash if present
+	if len(topicName) > 0 && topicName[len(topicName)-1] == '/' {
+		topicName = topicName[:len(topicName)-1]
+	}
+
+	if topicName == "" {
+		http.Error(w, "Topic name required for deletion", http.StatusBadRequest)
+		return
+	}
+
+	handleDeleteTopicByName(w, topicName)
+}
+
+// Helper function to handle delete by topic name
+func handleDeleteTopicByName(w http.ResponseWriter, topicName string) {
+	if err := pubSub.DeleteTopic(topicName); err != nil {
+		if err.Error() == "topic not found" {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "deleted",
+		"topic":  topicName,
+	})
 }
