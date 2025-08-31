@@ -188,6 +188,12 @@ func (h *WebSocketHandler) handlePublish(conn *websocket.Conn, msg *models.Clien
 	// Validate message ID
 	if msg.Message.ID == "" {
 		msg.Message.ID = uuid.New().String()
+	} else {
+		// Validate UUID format if provided
+		if _, err := uuid.Parse(msg.Message.ID); err != nil {
+			h.sendError(conn, "BAD_REQUEST", "message.id must be a valid UUID", msg.RequestID)
+			return
+		}
 	}
 
 	topic, exists := h.pubSubSystem.GetTopic(msg.Topic)

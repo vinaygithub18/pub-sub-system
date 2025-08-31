@@ -2,6 +2,8 @@ package pubsub
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -19,12 +21,25 @@ type PubSubSystem struct {
 
 // NewPubSubSystem creates a new pub/sub system
 func NewPubSubSystem() *PubSubSystem {
+	maxTopics := getEnvInt("MAX_TOPICS", 100)
+	maxSubscribers := getEnvInt("MAX_SUBSCRIBERS_PER_TOPIC", 100)
+
 	return &PubSubSystem{
 		Topics:         make(map[string]*models.Topic),
 		StartTime:      time.Now(),
-		MaxTopics:      100,
-		MaxSubscribers: 100,
+		MaxTopics:      maxTopics,
+		MaxSubscribers: maxSubscribers,
 	}
+}
+
+// getEnvInt gets an environment variable as an integer with a default value
+func getEnvInt(key string, defaultValue int) int {
+	if val := os.Getenv(key); val != "" {
+		if intVal, err := strconv.Atoi(val); err == nil {
+			return intVal
+		}
+	}
+	return defaultValue
 }
 
 // NewTopic creates a new topic

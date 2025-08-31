@@ -306,9 +306,32 @@ go test ./...
 
 - `PORT`: Server port (default: 8080)
 - `MAX_TOPICS`: Maximum number of topics (default: 100)
-- `MAX_SUBSCRIBERS`: Maximum subscribers per topic (default: 100)
-- `MAX_MESSAGES`: Message history per topic (default: 100)
-- `MAX_QUEUE`: Subscriber queue size (default: 100)
+- `MAX_SUBSCRIBERS_PER_TOPIC`: Maximum subscribers per topic (default: 100)
+- `TOPIC_HISTORY_SIZE`: Maximum messages to keep in topic history (default: 100)
+- `SUBSCRIBER_QUEUE_SIZE`: Subscriber queue size (default: 100)
+
+### Backpressure Policy
+
+The system implements a comprehensive backpressure strategy to handle slow consumers:
+
+#### **Subscriber Queue Overflow (SLOW_CONSUMER)**
+- Each subscriber has a bounded message queue (configurable via `SUBSCRIBER_QUEUE_SIZE`)
+- When a subscriber's queue is full, the system:
+  1. Sends a `SLOW_CONSUMER` error message to the client
+  2. Immediately closes the WebSocket connection
+  3. Removes the subscriber from the topic
+- This prevents memory overflow and ensures system stability
+
+#### **Topic Message History (Ring Buffer)**
+- Each topic maintains a bounded message history (configurable via `TOPIC_HISTORY_SIZE`)
+- When the history limit is reached, the oldest messages are dropped (FIFO eviction)
+- This prevents unlimited memory growth while preserving recent messages for replay
+
+#### **Fan-out Guarantee**
+- Every active subscriber to a topic receives each published message
+- If any subscriber cannot keep up (queue overflow), they are disconnected
+- Other subscribers continue to receive messages normally
+- This ensures message delivery to all capable consumers
 
 ### Rate Limiting
 

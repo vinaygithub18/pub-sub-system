@@ -18,12 +18,13 @@ func NewSubscriberManager() *SubscriberManager {
 
 // NewSubscriber creates a new subscriber
 func (sm *SubscriberManager) NewSubscriber(id, topic string, conn models.WebSocketConn) *models.Subscriber {
+	queueSize := getEnvInt("SUBSCRIBER_QUEUE_SIZE", 100)
 	return &models.Subscriber{
 		ID:       id,
 		Conn:     conn,
 		Topic:    topic,
-		Queue:    make(chan *models.Message, 100), // Bounded queue
-		MaxQueue: 100,
+		Queue:    make(chan *models.Message, queueSize), // Bounded queue
+		MaxQueue: queueSize,
 	}
 }
 

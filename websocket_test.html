@@ -101,6 +101,43 @@
             background-color: #e8f5e8;
             border-left: 3px solid #4caf50;
         }
+        
+        .subscriptions {
+            margin-top: 10px;
+        }
+        
+        .subscription-item {
+            background-color: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 8px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .subscription-item.active {
+            background-color: #e8f5e8;
+            border-color: #4caf50;
+        }
+        
+        .subscription-item.inactive {
+            background-color: #ffebee;
+            border-color: #f44336;
+        }
+        
+        .fan-out-demo {
+            background-color: #fff3e0;
+            border: 2px solid #ff9800;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .fan-out-demo h4 {
+            color: #e65100;
+            margin-top: 0;
+        }
     </style>
 </head>
 <body>
@@ -128,6 +165,7 @@
             <button onclick="createTopic()">Create Topic</button>
             <button onclick="deleteTopic()">Delete Topic</button>
             <button onclick="listTopics()">List Topics</button>
+            <button onclick="showTopicStatus()" style="background-color: #4caf50;">📊 Show Topic Status</button>
             
             <h3>Subscription</h3>
             <div class="form-group">
@@ -142,6 +180,20 @@
             
             <button onclick="subscribe()">Subscribe</button>
             <button onclick="unsubscribe()">Unsubscribe</button>
+            
+            <h3>Multiple Subscribers (Fan-out Demo)</h3>
+            <div class="form-group">
+                <label for="clientId2">Second Client ID:</label>
+                <input type="text" id="clientId2" value="test-client-2" />
+            </div>
+            
+            <button onclick="subscribeSecond()">Subscribe Client 2</button>
+            <button onclick="unsubscribeSecond()">Unsubscribe Client 2</button>
+            
+            <h3>Active Subscriptions</h3>
+            <div id="subscriptions" class="subscriptions">
+                <div class="subscription-item">No active subscriptions</div>
+            </div>
         </div>
         
         <div class="panel">
@@ -163,12 +215,33 @@
             <div id="log" class="log"></div>
             
             <button onclick="clearLog()">Clear Log</button>
+            <button onclick="demoFanOut()" style="background-color: #ff9800;">🎯 Fan-out Demo</button>
         </div>
+    </div>
+    
+    <div class="fan-out-demo">
+        <h4>🎯 Fan-out Demonstration Instructions</h4>
+        <p><strong>How to test the fan-out feature:</strong></p>
+        <ol>
+            <li><strong>Create a topic</strong> (e.g., "demo-topic")</li>
+            <li><strong>Subscribe Client 1</strong> with ID "client-1"</li>
+            <li><strong>Subscribe Client 2</strong> with ID "client-2"</li>
+            <li><strong>Publish a message</strong> to the topic</li>
+            <li><strong>Observe:</strong> Both clients receive the same message simultaneously!</li>
+        </ol>
+        <p><strong>What this demonstrates:</strong></p>
+        <ul>
+            <li>✅ <strong>Fan-out:</strong> Every subscriber to a topic receives each message</li>
+            <li>✅ <strong>Isolation:</strong> Messages never cross topics</li>
+            <li>✅ <strong>Real-time:</strong> Instant delivery to all connected subscribers</li>
+            <li>✅ <strong>Concurrent:</strong> Multiple subscribers handled simultaneously</li>
+        </ul>
     </div>
 
     <script>
         let ws = null;
         let isConnected = false;
+        let activeSubscriptions = new Map(); // Track topic -> client IDs
         
         function log(message, type = 'info') {
             const logDiv = document.getElementById('log');
@@ -197,6 +270,41 @@
             }
         }
         
+        function updateSubscriptionDisplay() {
+            const subscriptionsDiv = document.getElementById('subscriptions');
+            if (activeSubscriptions.size === 0) {
+                subscriptionsDiv.innerHTML = '<div class="subscription-item">No active subscriptions</div>';
+                return;
+            }
+            
+            let html = '';
+            for (const [topic, clients] of activeSubscriptions) {
+                html += `<div class="subscription-item active">`;
+                html += `<strong>Topic: ${topic}</strong><br>`;
+                html += `Subscribers: ${clients.join(', ')}`;
+                html += `</div>`;
+            }
+            subscriptionsDiv.innerHTML = html;
+        }
+        
+        function addSubscription(topic, clientId) {
+            if (!activeSubscriptions.has(topic)) {
+                activeSubscriptions.set(topic, new Set());
+            }
+            activeSubscriptions.get(topic).add(clientId);
+            updateSubscriptionDisplay();
+        }
+        
+        function removeSubscription(topic, clientId) {
+            if (activeSubscriptions.has(topic)) {
+                activeSubscriptions.get(topic).delete(clientId);
+                if (activeSubscriptions.get(topic).size === 0) {
+                    activeSubscriptions.delete(topic);
+                }
+            }
+            updateSubscriptionDisplay();
+        }
+        
         function connect() {
             const url = document.getElementById('wsUrl').value;
             
@@ -209,14 +317,30 @@
                     log('WebSocket connected', 'info');
                 };
                 
-                ws.onmessage = function(event) {
-                    try {
-                        const data = JSON.parse(event.data);
-                        log(`Received: ${JSON.stringify(data, null, 2)}`, 'incoming');
-                    } catch (e) {
-                        log(`Received raw message: ${event.data}`, 'incoming');
+                            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    log(`Received: ${JSON.stringify(data, null, 2)}`, 'incoming');
+                    
+                    // Handle subscription acknowledgments
+                    if (data.type === 'ack' && data.topic) {
+                        log(`✅ Successfully ${data.status === 'ok' ? 'subscribed to' : 'unsubscribed from'} topic: ${data.topic}`, 'info');
                     }
-                };
+                    
+                    // Handle events (published messages)
+                    if (data.type === 'event' && data.topic) {
+                        log(`📨 Received message on topic '${data.topic}': ${JSON.stringify(data.message)}`, 'incoming');
+                    }
+                    
+                    // Handle errors
+                    if (data.type === 'error') {
+                        log(`❌ Error: ${data.error?.code} - ${data.error?.message}`, 'error');
+                    }
+                    
+                } catch (e) {
+                    log(`Received raw message: ${event.data}`, 'incoming');
+                }
+            };
                 
                 ws.onclose = function() {
                     isConnected = false;
@@ -273,6 +397,8 @@
             };
             
             sendMessage(message);
+            
+            addSubscription(topic, clientId);
         }
         
         function unsubscribe() {
@@ -292,6 +418,54 @@
             };
             
             sendMessage(message);
+            
+            removeSubscription(topic, clientId);
+        }
+        
+        function subscribeSecond() {
+            const topic = document.getElementById('topicName').value;
+            const clientId = document.getElementById('clientId2').value;
+            const lastN = parseInt(document.getElementById('lastN').value) || 0;
+            
+            if (!topic || !clientId) {
+                log('Topic and Client ID are required', 'error');
+                return;
+            }
+            
+            const message = {
+                type: 'subscribe',
+                topic: topic,
+                client_id: clientId,
+                last_n: lastN,
+                request_id: generateRequestId()
+            };
+            
+            sendMessage(message);
+            log(`Sent (Client 2): ${JSON.stringify(message)}`, 'outgoing');
+            
+            addSubscription(topic, clientId);
+        }
+        
+        function unsubscribeSecond() {
+            const topic = document.getElementById('topicName').value;
+            const clientId = document.getElementById('clientId2').value;
+            
+            if (!topic || !clientId) {
+                log('Topic and Client ID are required', 'error');
+                return;
+            }
+            
+            const message = {
+                type: 'unsubscribe',
+                topic: topic,
+                client_id: clientId,
+                request_id: generateRequestId()
+            };
+            
+            sendMessage(message);
+            log(`Sent (Client 2): ${JSON.stringify(message)}`, 'outgoing');
+            
+            removeSubscription(topic, clientId);
         }
         
         function publish() {
@@ -340,6 +514,15 @@
         
         function clearLog() {
             document.getElementById('log').innerHTML = '';
+        }
+        
+        function demoFanOut() {
+            log('🎯 Starting Fan-out Demo...', 'info');
+            log('1. Create a topic (e.g., "demo-topic")', 'info');
+            log('2. Subscribe Client 1 with ID "client-1"', 'info');
+            log('3. Subscribe Client 2 with ID "client-2"', 'info');
+            log('4. Publish a message to see both clients receive it!', 'info');
+            log('This demonstrates: Every subscriber gets each message (Fan-out)', 'info');
         }
         
         // HTTP API functions
@@ -405,6 +588,24 @@
                 }
             } catch (error) {
                 log(`HTTP error: ${error}`, 'error');
+            }
+        }
+        
+        function showTopicStatus() {
+            const topic = document.getElementById('topicName').value;
+            if (!topic) {
+                log('Please enter a topic name first', 'error');
+                return;
+            }
+            
+            log(`📊 Topic Status for: ${topic}`, 'info');
+            if (activeSubscriptions.has(topic)) {
+                const clients = Array.from(activeSubscriptions.get(topic));
+                log(`✅ Active subscribers: ${clients.join(', ')}`, 'info');
+                log(`📨 When you publish to this topic, ALL ${clients.length} subscribers will receive the message!`, 'info');
+            } else {
+                log(`❌ No active subscribers for topic: ${topic}`, 'error');
+                log(`💡 Subscribe at least one client to see fan-out in action!`, 'info');
             }
         }
         

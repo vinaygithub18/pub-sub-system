@@ -124,3 +124,36 @@ func (h *HTTPHandler) HandleStats(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
 }
+
+// HandleRoot handles the root endpoint
+func (h *HTTPHandler) HandleRoot(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Only handle exact root path
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Return API information and available endpoints
+	apiInfo := map[string]interface{}{
+		"name":        "Pub/Sub System API",
+		"version":     "1.0.0",
+		"description": "A real-time Pub/Sub system with WebSocket support",
+		"endpoints": map[string]string{
+			"root":      "/",
+			"websocket": "/ws",
+			"topics":    "/topics",
+			"health":    "/health",
+			"stats":     "/stats",
+		},
+		"websocket_url": "wss://pub-sub-system-production.up.railway.app/ws",
+		"status":        "running",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(apiInfo)
+}

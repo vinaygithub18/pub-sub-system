@@ -20,8 +20,9 @@ func (tm *TopicManager) AddMessage(topic *models.Topic, msg *models.Message) {
 	topic.Mu.Lock()
 	defer topic.Mu.Unlock()
 
+	maxMessages := getEnvInt("TOPIC_HISTORY_SIZE", 100)
 	topic.Messages = append(topic.Messages, msg)
-	if len(topic.Messages) > topic.MaxMessages {
+	if len(topic.Messages) > maxMessages {
 		topic.Messages = topic.Messages[1:] // Remove oldest message
 	}
 }
@@ -45,7 +46,8 @@ func (tm *TopicManager) AddSubscriber(topic *models.Topic, sub *models.Subscribe
 	topic.Mu.Lock()
 	defer topic.Mu.Unlock()
 
-	if len(topic.Subscribers) >= 100 { // Max subscribers per topic
+	maxSubs := getEnvInt("MAX_SUBSCRIBERS_PER_TOPIC", 100)
+	if len(topic.Subscribers) >= maxSubs {
 		return fmt.Errorf("maximum subscribers reached for topic")
 	}
 
