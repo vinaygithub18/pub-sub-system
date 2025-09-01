@@ -18,7 +18,7 @@ func NewSubscriberManager() *SubscriberManager {
 
 // NewSubscriber creates a new subscriber
 func (sm *SubscriberManager) NewSubscriber(id, topic string, conn models.WebSocketConn) *models.Subscriber {
-	queueSize := getEnvInt("SUBSCRIBER_QUEUE_SIZE", 100)
+	queueSize := 100 // Fixed: Use constant until env var issue resolved
 	return &models.Subscriber{
 		ID:       id,
 		Conn:     conn,

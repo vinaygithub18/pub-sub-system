@@ -103,14 +103,10 @@ func (ps *PubSubSystem) GetStats() map[string]interface{} {
 	stats := make(map[string]interface{})
 	topicStats := make(map[string]interface{})
 
-	totalSubscribers := 0
 	for name, topic := range ps.Topics {
-		subscriberCount := len(topic.Subscribers)
-		totalSubscribers += subscriberCount
-
 		topicStats[name] = map[string]interface{}{
 			"messages":    len(topic.Messages),
-			"subscribers": subscriberCount,
+			"subscribers": len(topic.Subscribers),
 		}
 	}
 
